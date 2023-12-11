@@ -1,94 +1,146 @@
-const X_CLASS = 'x';
-const CIRCLE_CLASS = 'circle';
-const WINNING_COMBINATIONS = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6]
-]
-const cellElements = document.querySelectorAll('[data-cell]');
-const board = document.getElementById('board');
-const restart = document.getElementById('restart-button')
-const winningMessage = document.getElementById('winning-message');
-const winningTextMessage = document.querySelector('[data-winning-message-text]')
-let circleTurn
+const displayController = (()=> {
+    const renderMessage = (message) => {
+        document.querySelector('#message').textContent = message;
 
-startGame();
-
-restart.addEventListener('click', startGame)
-
-function startGame() {
-    circleTurn = false
-    cellElements.forEach(cell => {
-        cell.classList.remove(X_CLASS)
-        cell.classList.remove(CIRCLE_CLASS)
-        cell.removeEventListener('click', handleClick)
-        cell.addEventListener('click', handleClick, {once:true})
-    });
-
-    setBoardHoverClass();
-    winningMessage.classList.remove('show')
-};
-
-function handleClick(e) {
-    const cell = e.target;
-    const currentClass = circleTurn ? CIRCLE_CLASS : X_CLASS;
-
-    placeMark(cell,currentClass);
-
-    if(checkWin(currentClass)) {
-        endGame(false)
-    } else if (isdraw()){
-        endGame(true)
-    } else {
-        swapTurns();
-        setBoardHoverClass();
     }
-};
 
-function endGame(draw) {
-    if (draw) {
-        winningTextMessage.textContent = 'Draw!'
-    } else {
-        winningTextMessage.textContent = `${circleTurn ? "O's" : "X's"} Wins!`
+    return{
+        renderMessage
     }
-    winningMessage.classList.add('show')
-}
+})();
 
-function isdraw() {
-    return [...cellElements].every(cell => {
-        return cell.classList.contains(X_CLASS) ||
-        cell.classList.contains(CIRCLE_CLASS)
-    })
-}
 
-function placeMark(cell, currentClass) {
-    cell.classList.add(currentClass)
-};
+const Gameboard = (() => {
+    let gameboard = ['', '', '', '', '', '', '', '', ''];
 
-function swapTurns(){
-    circleTurn = !circleTurn
-};
-
-function setBoardHoverClass() {
-    board.classList.remove(X_CLASS);
-    board.classList.remove(CIRCLE_CLASS);
-
-    if(circleTurn) {
-        board.classList.add(CIRCLE_CLASS)
-    } else {
-        board.classList.add(X_CLASS)
-    }
-};
-
-function checkWin(currentClass){
-    return WINNING_COMBINATIONS.some(combination => {
-        return combination.every(index => {
-            return cellElements[index].classList.contains(currentClass)
+    const render = () => {
+        let boardHTML = '';
+        gameboard.forEach((square, index) => {
+            boardHTML += `<div class = "square" id= "square-${index}">${square}</div>`
         })
+
+        document.querySelector('#gameboard').innerHTML = boardHTML;
+        const squares = document.querySelectorAll('.square');
+        squares.forEach((square) => {
+        square,addEventListener('click', Game.handleClick);
     })
+    }
+
+
+    const update = (index, value) => {
+        gameboard[index] = value;
+        render();
+    }
+
+    const getGameboard = () => gameboard;
+
+    return {
+        render,
+        update,
+        getGameboard
+    }
+})();
+
+const createPlayer = (name, mark) => {
+    return {
+        name,
+        mark
+    }
 }
+
+const Game = (() => {
+        let players = [];
+        let currentPlayerIndex;
+        let gameOver;
+    
+        const start = () => {
+            players = [
+                createPlayer(document.querySelector('#player1').value, 'X'),
+                createPlayer(document.querySelector('#player2').value, '0')
+        ];
+            currentPlayerIndex = 0;
+            gameOver = false;
+            Gameboard.render();
+            const squares = document.querySelectorAll('.square');
+            squares.forEach((square) => {
+            square.addEventListener('click', handleClick);
+        })
+        }  
+        
+        const handleClick = (event) => {
+
+            if(gameOver) {
+                return;
+            }
+            let index = parseInt(event.target.id.split("-")[1]);                
+            if (Gameboard.getGameboard()[index] !== '')
+            return;
+            
+            Gameboard.update(index, players[currentPlayerIndex].mark)
+            
+            if(checkForWin(Gameboard.getGameboard(), players[currentPlayerIndex].mark)) {
+                gameOver= true;
+                displayController.renderMessage(`${players[currentPlayerIndex].name} Wins!!`)
+            
+            } else if(checkForTie(Gameboard.getGameboard())){
+                gameOver = true;
+                displayController.renderMessage(`It's a Tie!`);
+            }
+
+            currentPlayerIndex = currentPlayerIndex === 0 ? 1:0;
+        }
+
+        const restart = () => {
+            for (let i = 0; i < 9; i++){
+                Gameboard.update(i, '');
+            };
+            Gameboard.render();
+            gameOver = false;
+            document.querySelector('#message').textContent=''
+        }
+
+
+            return {
+                start,
+                restart,
+                handleClick
+            }
+
+    })();
+
+    function checkForWin(board) {
+        const winningCombination = [
+            [0,1,2],
+            [3,4,5],
+            [6,7,8],
+            [0,3,6],
+            [1,4,7],
+            [2,5,8],
+            [0,4,8],
+            [2,4,6]
+        ]
+
+        for (let i = 0; i < winningCombination.length; i++){
+            const [a,b,c] = winningCombination[i];
+            if (board[a] && board[a] === board[b] && board[a] === board [c]){
+                return true
+            } 
+        }
+
+        return false;
+    }
+
+    function checkForTie(board) {
+        return board.every(cell => cell !== '');
+    }
+
+    const restartButton = document.querySelector('#restart-button');
+    restartButton.addEventListener('click', () => {
+        Game.restart();
+    })
+
+const startButton = document.querySelector('#start-button');
+
+startButton.addEventListener('click', () => {
+    Game.start();
+})
